@@ -7,14 +7,14 @@ const app = express();
 app.use(express.json());
 
 createConnection({
-    type: "sqlite",  // or whatever database you're using
+    type: "sqlite",  
     database: "database.sqlite",
     synchronize: true,
     entities: [Contact],
 }).then(() => {
     console.log("Database connected!");
 
-    // Define routes here after the database is connected
+    
     const identifyRoute = require("./routes/identify");
     app.use("/api", identifyRoute);
 

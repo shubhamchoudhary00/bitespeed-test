@@ -142,7 +142,7 @@ router.post("/identify", async (req, res) => {
 
 
   
-
+// To get all the contacts from the database
 router.get("/contacts", async (req, res) => {
     try {
       const contacts = await contactRepository.find();
@@ -194,16 +194,17 @@ router.get("/contacts", async (req, res) => {
     
   
     try {
-      // Create a new contact
+      // Get all the documents from the database
       const contacts = await contactRepository.find();
      
   
     for(let i=0;i<contacts.length;i++){
       let cont=await contactRepository.findOne({where :{id:contacts[i].id}})
-      contactRepository.remove(cont)
+      
+      contactRepository.remove(cont)  // Removing every element from the database
     }
   
-      // Respond with the created contact
+      
       res.status(201).json({
         message:'deleted'
       });
