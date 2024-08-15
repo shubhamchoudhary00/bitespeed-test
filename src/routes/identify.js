@@ -129,7 +129,6 @@ router.post("/identify", async (req, res) => {
   const emails = [...new Set(contacts.map((val) => val.email))];
   const phoneNumbers = [...new Set(contacts.map((val) => val.phoneNumber))];
 
-  console.log(contacts);
 
   return res.json({
     contact: {
@@ -149,7 +148,7 @@ router.get("/contacts", async (req, res) => {
       const contacts = await contactRepository.find();
       res.json(contacts);
     } catch (error) {
-      console.error("Error fetching contacts:", error);
+      
       res.status(500).json({ message: "Error fetching contacts" });
     }
   });
@@ -184,7 +183,7 @@ router.get("/contacts", async (req, res) => {
         },
       });
     } catch (error) {
-      console.error("Error adding contact:", error);
+      
       res.status(500).json({ message: "Error adding contact" });
     }
   });
@@ -209,7 +208,7 @@ router.get("/contacts", async (req, res) => {
         message:'deleted'
       });
     } catch (error) {
-      console.error("Error deleting contact:", error);
+      
       res.status(500).json({ message: "Error deleting contact" });
     }
   });
