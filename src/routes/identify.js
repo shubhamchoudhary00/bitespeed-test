@@ -188,7 +188,7 @@ router.get("/contacts", async (req, res) => {
     }
   });
 
-  router.post("/delete", async (req, res) => {
+  router.delete("/delete", async (req, res) => {
     
   
     
