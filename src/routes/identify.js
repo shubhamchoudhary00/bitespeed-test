@@ -6,134 +6,142 @@ const router = Router();
 const contactRepository = getRepository(Contact);
 
 router.post("/identify", async (req, res) => {
-    const { email, phoneNumber } = req.body;
-    let contacts = [];
-    let flag=false;
-    
-    if (email && phoneNumber) {
-        contacts = await contactRepository.find({
-          where: { email , phoneNumber },
-        });
-        console.log('and'+contacts)
-        
-        if(contacts.length===0){
-            contacts = await contactRepository.find({
-                where: [{ email }, {phoneNumber }],
-              });
-            flag=true;      
-        }
+  const { email, phoneNumber } = req.body;
+  let contacts = [];
+  let flag = false;
 
-    } else if (email) {
-      contacts = await contactRepository.find({ where: { email } });
-      flag=true;
-   
-    } else if (phoneNumber) {
-      contacts = await contactRepository.find({ where: { phoneNumber } });
-      flag=true;
-     
-    }
-  
-    // If no contacts found, create a new primary contact
-    if (contacts.length >0 && flag ) {
-        console.log("in it")
-        console.log('contacts', contacts);
+  if (email && phoneNumber) {
+    contacts = await contactRepository.find({
+      where: { email, phoneNumber },
+    });
 
-        const primaryCont = contacts.reduce((earliest, contact) => {
-          return earliest.createdAt < contact.createdAt ? earliest : contact;
-        }, contacts[0]);
-        
-        console.log('primary', primaryCont);
-        
-        const newContact = contactRepository.create({
-            email,
-            phoneNumber,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            linkPrecedence: "secondary",
-            linkedId:primaryCont.id
-          });
-          await contactRepository.save(newContact);
-          return res.json({
-            contact: {
-              primaryContatctId: newContact.id,
-              emails: [newContact.email],
-              phoneNumbers: [newContact.phoneNumber],
-              secondaryContactIds: [],
-            },
-          });
-    }else if(contacts.length===0){
-        const newContact = contactRepository.create({
-            email,
-            phoneNumber,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            linkPrecedence: "primary",
-            
-          });
-          await contactRepository.save(newContact);
-          return res.json({
-            contact: {
-              primaryContatctId: newContact.id,
-              emails: [newContact.email],
-              phoneNumbers: [newContact.phoneNumber],
-              secondaryContactIds: [],
-            },
-          });
-    }
-  
-    // Group contacts by primary and secondary
-    const primaryContact = contacts.find((contact) => contact.linkPrecedence === "primary");
-    const secondaryContacts = contacts.filter((contact) => contact.linkPrecedence === "secondary");
-  
-    // Use a map to track processed phone numbers and emails
-    const phoneToEmailMap = new Map();
-    const emailSet = new Set();
-    const phoneSet = new Set();
-    const secondaryContactIds = [];
-  
-    contacts.forEach((contact) => {
-      if (contact.phoneNumber) {
-        phoneToEmailMap.set(contact.phoneNumber, contact.email);
-        phoneSet.add(contact.phoneNumber);
-      }
-      if (contact.email) {
-        emailSet.add(contact.email);
-      }
-      if (contact.linkPrecedence === "secondary") {
-        secondaryContactIds.push(contact.id);
-      }
-    });
-  
-    // Add emails for all phone numbers and vice versa
-    const emails = Array.from(emailSet);
-    const phoneNumbers = Array.from(phoneSet);
-  
-    // Ensure we add emails corresponding to the phone numbers
-    phoneNumbers.forEach((phone) => {
-      const email = phoneToEmailMap.get(phone);
-      if (email) {
-        emailSet.add(email);
-      }
-    });
-  
-    // Ensure we add phone numbers corresponding to the emails
-    emails.forEach((email) => {
-      contacts.forEach((contact) => {
-        if (contact.email === email && contact.phoneNumber) {
-          phoneSet.add(contact.phoneNumber);
-        }
+    if (contacts.length === 0) {
+      contacts = await contactRepository.find({
+        where: [{ email }, { phoneNumber }],
       });
+      flag = true;
+    }
+  } else if (email) {
+    contacts = await contactRepository.find({ where: { email } });
+    for (const contact of contacts) {
+      const subContacts = await contactRepository.find({ where: { phoneNumber: contact.phoneNumber } });
+      contacts = contacts.concat(subContacts);
+    }
+    flag = true;
+  } else if (phoneNumber) {
+    contacts = await contactRepository.find({ where: { phoneNumber } });
+    for (const contact of contacts) {
+      const subContacts = await contactRepository.find({ where: { email: contact.email } });
+      contacts = contacts.concat(subContacts);
+    }
+    flag = true;
+  }
+
+  if (contacts.length > 0 && flag && email && phoneNumber) {
+    const primaryCont = contacts.reduce((earliest, contact) => {
+      return earliest.createdAt < contact.createdAt ? earliest : contact;
+    }, contacts[0]);
+
+    // Update linkPrecedence for all secondary contacts if primary is found
+    await Promise.all(
+      contacts.map(async (contact) => {
+        if (contact.linkPrecedence === "primary" && contact.id !== primaryCont.id) {
+          contact.linkPrecedence = "secondary";
+          contact.linkedId = primaryCont.id;
+          await contactRepository.save(contact);
+        }
+      })
+    );
+
+    const newContact = contactRepository.create({
+      email,
+      phoneNumber,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      linkPrecedence: "secondary",
+      linkedId: primaryCont.id,
     });
-  
+
+    contacts.push(newContact);
+    await contactRepository.save(newContact);
+
+    const emails = [...new Set(contacts.map((val) => val.email))];
+    const phoneNumbers = [...new Set(contacts.map((val) => val.phoneNumber))];
+    const secondaryContactIds = [
+      ...new Set(
+        contacts
+          .filter((val) => val.id !== primaryCont?.id)
+          .map((val) => val.id)
+      ),
+    ];
+
     return res.json({
       contact: {
-        primaryContatctId: primaryContact?.id || contacts[0].id,
-        emails: Array.from(emailSet),
-        phoneNumbers: Array.from(phoneSet),
+        primaryContactId: primaryCont.id,
+        emails,
+        phoneNumbers,
         secondaryContactIds,
       },
     });
+  } else if (contacts.length === 0 && email && phoneNumber) {
+    const newContact = contactRepository.create({
+      email,
+      phoneNumber,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      linkPrecedence: "primary",
+    });
+
+    await contactRepository.save(newContact);
+
+    return res.json({
+      contact: {
+        primaryContactId: newContact.id,
+        emails: [newContact.email],
+        phoneNumbers: [newContact.phoneNumber],
+        secondaryContactIds: [],
+      },
+    });
+  }
+
+  // Final contact data preparation for response
+  const primaryContact = contacts.find((contact) => contact.linkPrecedence === "primary") || contacts[0];
+
+  // Update secondary contacts to have `linkPrecedence` as "secondary" if primary is found
+  await Promise.all(
+    contacts.map(async (contact) => {
+      if (contact.linkPrecedence === "primary" && contact.id !== primaryContact.id) {
+        contact.linkPrecedence = "secondary";
+        contact.linkedId = primaryContact.id;
+        await contactRepository.save(contact);
+      }
+    })
+  );
+
+  const secondaryContactIds = [
+    ...new Set(
+      contacts
+        .filter((val) => val.id !== primaryContact?.id)
+        .map((val) => val.id)
+    ),
+  ];
+
+  const emails = [...new Set(contacts.map((val) => val.email))];
+  const phoneNumbers = [...new Set(contacts.map((val) => val.phoneNumber))];
+
+  console.log(contacts);
+
+  return res.json({
+    contact: {
+      primaryContactId: primaryContact.id,
+      emails,
+      phoneNumbers,
+      secondaryContactIds,
+    },
   });
+});
+
+
   
 
 router.get("/contacts", async (req, res) => {
@@ -147,7 +155,7 @@ router.get("/contacts", async (req, res) => {
   });
 
   router.post("/add-contact", async (req, res) => {
-    const { email, phoneNumber } = req.body;
+    const { email, phoneNumber,linkPrecedence } = req.body;
   
     // Check if email and phoneNumber are provided
     if (!email || !phoneNumber) {
@@ -161,7 +169,7 @@ router.get("/contacts", async (req, res) => {
         phoneNumber,
         createdAt: new Date(),
         updatedAt: new Date(),
-        linkPrecedence: "primary",
+        linkPrecedence: linkPrecedence,
       });
   
       // Save the contact to the database
@@ -178,6 +186,31 @@ router.get("/contacts", async (req, res) => {
     } catch (error) {
       console.error("Error adding contact:", error);
       res.status(500).json({ message: "Error adding contact" });
+    }
+  });
+
+  router.post("/delete", async (req, res) => {
+    
+  
+    
+  
+    try {
+      // Create a new contact
+      const contacts = await contactRepository.find();
+     
+  
+    for(let i=0;i<contacts.length;i++){
+      let cont=await contactRepository.findOne({where :{id:contacts[i].id}})
+      contactRepository.remove(cont)
+    }
+  
+      // Respond with the created contact
+      res.status(201).json({
+        message:'deleted'
+      });
+    } catch (error) {
+      console.error("Error deleting contact:", error);
+      res.status(500).json({ message: "Error deleting contact" });
     }
   });
 
