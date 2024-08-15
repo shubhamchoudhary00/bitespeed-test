@@ -154,7 +154,7 @@ router.get("/contacts", async (req, res) => {
   });
 
   router.post("/add-contact", async (req, res) => {
-    const { email, phoneNumber,linkPrecedence } = req.body;
+    const { email, phoneNumber,linkPrecedence,linkedId } = req.body;
   
     // Check if email and phoneNumber are provided
     if (!email || !phoneNumber) {
@@ -169,6 +169,7 @@ router.get("/contacts", async (req, res) => {
         createdAt: new Date(),
         updatedAt: new Date(),
         linkPrecedence: linkPrecedence,
+        linkedId: linkedId ? linkedId : null
       });
   
       // Save the contact to the database
