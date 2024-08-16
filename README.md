@@ -1,18 +1,61 @@
-Below is the endpoint to test the "identify" which was given for the test
+# Contact Identification API
 
-https://bitespeed-ps19.onrender.com/api/identify
-This is a post request , after selecting the type of request which is post ,
-you can send the request parameters in the body which are email and phoneNumber
+Welcome to the Contact Identification API project! This project is designed to provide services that help identify and manage user contact information. Whether it's identifying unique contacts, linking related contacts, or managing data cleanup, this API is built to support these essential operations.
 
-I have also added some additional endpoints for my testing purpose 
+## Endpoints Overview
 
-One of them is add-contact endpoint which will take email,phoneNumber,linkedId and linkedPrecedence as request body parameters to create a new record in the database
+### 1. **Identify Contact Endpoint**
+   - **Description**: This endpoint identifies whether the contact details provided are unique or associated with an existing contact in the database.
+   - **Method**: `POST`
+   - **Endpoint**: `/api/identify`
+   - **Request Parameters**:
+     - `email` (String) - The contact's email address.
+     - `phoneNumber` (String) - The contact's phone number.
+   - **Usage**: 
+     Send a `POST` request with the contact's email and phone number in the request body to identify if the contact already exists in the system.
+   - **Example**: 
+     ```json
+     {
+       "email": "example@email.com",
+       "phoneNumber": "1234567890"
+     }
+     ```
 
-Below is the endpoint for it, it is also a post request 
-https://bitespeed-ps19.onrender.com/api/add-contact
+### 2. **Add Contact Endpoint**
+   - **Description**: This endpoint allows you to add a new contact to the database with additional details, such as linking to an existing contact.
+   - **Method**: `POST`
+   - **Endpoint**: `/api/add-contact`
+   - **Request Parameters**:
+     - `email` (String) - The contact's email address.
+     - `phoneNumber` (String) - The contact's phone number.
+     - `linkedId` (Integer) - The ID of the contact this new record is linked to, if applicable.
+     - `linkedPrecedence` (String) - Defines the precedence of the link, typically either `primary` or `secondary`.
+   - **Usage**: 
+     Send a `POST` request with the contact details and linking information in the request body to add a new record or link an existing one.
+   - **Example**: 
+     ```json
+     {
+       "email": "newuser@email.com",
+       "phoneNumber": "0987654321",
+       "linkedId": 1,
+       "linkedPrecedence": "secondary"
+     }
+     ```
 
-I have also added a delete endpoint which will delete all the data from the database
+### 3. **Delete All Contacts Endpoint**
+   - **Description**: This endpoint will remove all the records from the database, allowing for cleanup or resetting of the data.
+   - **Method**: `DELETE`
+   - **Endpoint**: `/api/delete`
+   - **Usage**: 
+     Send a `DELETE` request to remove all records in the contact database.
 
-Below is the endpoint for it and it uses delete method for the api to send the request .
+## Usage Instructions
 
-https://bitespeed-ps19.onrender.com/api/delete
+To interact with this API, use tools like Postman or any HTTP client of your choice. Make sure to format your requests according to the given parameters for each endpoint.
+
+### Example with `curl`:
+#### Identify Contact:
+```bash
+curl -X POST https://bitespeed-ps19.onrender.com/api/identify \
+-H "Content-Type: application/json" \
+-d '{"email": "example@email.com", "phoneNumber": "1234567890"}'
